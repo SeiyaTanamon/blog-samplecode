@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create CodeCommit
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - 
+        Label:
+          default: Required parameters
+        Parameters:
+          - RepositoryName
+Parameters: 
+  RepositoryName:
+    Type: String
+
+Resources: 
+  CodeCommitRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryDescription: For Codepipeline CrossAccount Deploy
+      RepositoryName: !Sub ${RepositoryName}
+      
+Outputs:
+  CodeCommitRepositoryName:
+    Value: !GetAtt  CodeCommitRepository.Name
+    Export: 
+      Name: CodeCommitRepositoryName

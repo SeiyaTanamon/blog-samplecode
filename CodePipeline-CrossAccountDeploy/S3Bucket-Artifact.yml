@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create Artifact Bucket 
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - 
+        Label:
+          default: Required parameters
+        Parameters:
+          - DeployAccountID
+          - CrossAccountRoleName
+          - BucketName
+
+Parameters: 
+
+  DeployAccountID:
+    Type: String
+  CrossAccountRoleName:
+    Type: String
+  BucketName:
+    Type: String
+
+Resources: 
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${BucketName}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: aws:kms
+            KMSMasterKeyID: !ImportValue KMSKeyArn
+          BucketKeyEnabled: true
+
+  ArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:Put*
+              - s3:Get*
+            Resource:
+              - !Sub arn:aws:s3:::${ArtifactBucket}/*
+            Principal:
+              AWS: !Sub arn:aws:iam::${DeployAccountID}:role/${CrossAccountRoleName}
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !Sub arn:aws:s3:::${ArtifactBucket}
+            Principal:
+              AWS: !Sub arn:aws:iam::${DeployAccountID}:role/${CrossAccountRoleName}
+Outputs:
+  BucketName:
+    Value: !Ref ArtifactBucket
+    Export: 
+      Name: ArtifactBucketName

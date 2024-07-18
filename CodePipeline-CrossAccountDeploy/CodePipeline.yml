@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create CodePipeline
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - 
+        Label:
+          default:  Required parameters
+        Parameters:
+          - DeployAccountID
+          - CrossAccountRoleName
+          - CloudFormationServiceRoleNam
+          - CodePipelineName
+
+Parameters:
+  DeployAccountID:
+    Type: String
+  CrossAccountRoleName:
+    Type: String
+  CloudFormationServiceRoleName:
+    Type: String
+  CodePipelineName:
+    Type: String
+
+Resources:
+  CodePipelineForCrossAccountDeploy:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub ${CodePipelineName}
+      RoleArn: !ImportValue CodePipelineServiceRoleArn
+      ArtifactStore:
+        Type: S3
+        Location: !ImportValue ArtifactBucketName
+        EncryptionKey:
+          Id: !ImportValue  KMSKeyArn
+          Type: KMS
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              Configuration:
+                RepositoryName: !ImportValue CodeCommitRepositoryName
+                BranchName: main
+              RunOrder: 1
+              OutputArtifacts:
+                - Name: SourceArtifact
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              InputArtifacts:
+                - Name: SourceArtifact
+              RoleArn: !Sub  arn:aws:iam::${DeployAccountID}:role/${CrossAccountRoleName}
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !Sub arn:aws:iam::${DeployAccountID}:role/${CloudFormationServiceRoleName}
+                StackName: Test-CrossAccount-Deploy
+                TemplatePath: 'SourceArtifact::VPC.yml'
+              RunOrder: 2

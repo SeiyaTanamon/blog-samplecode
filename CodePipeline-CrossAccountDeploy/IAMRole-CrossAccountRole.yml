@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create CrossAccountRole
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - 
+        Label:
+          default: Required parameters
+        Parameters:
+          - ArtifactBucketName
+          - CodePipelineAccountID
+          - CodePipelineServiceRoleName
+          - CrossAccountRoleName
+          - KMSKeyArn
+
+Parameters:
+  ArtifactBucketName:
+    Type: String
+  CodePipelineAccountID:
+    Type: String
+  CodePipelineServiceRoleName:
+    Type: String
+  CrossAccountRoleName:
+    Type: String
+  KMSKeyArn:
+    Type: String
+    
+Resources:
+  CrossAccountRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref CrossAccountRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${CodePipelineAccountID}:role/${CodePipelineServiceRoleName}
+            Action: sts:AssumeRole
+  ArtifcatBucketAccess:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ArtifactBucketAccess
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:*
+            Resource:
+              - !Sub arn:aws:s3:::${ArtifactBucketName}/*
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !Sub arn:aws:s3:::${ArtifactBucketName}
+      Roles:
+        - !Ref CrossAccountRole
+  KMSAccess:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: KMSKeyAccess
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource:
+              - !Ref KMSKeyArn
+      Roles:
+        - !Ref CrossAccountRole
+  CloudFormationAccess:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudFormationAccess
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudformation:*
+              - iam:PassRole
+            Resource:
+              - "*"
+      Roles:
+        - !Ref CrossAccountRole
+  PassRole:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: PassRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource:
+              - !ImportValue CloudFormationServiceRoleArn
+      Roles:
+        - !Ref CrossAccountRole
+  

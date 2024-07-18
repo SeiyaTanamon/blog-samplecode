@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create KMS Key for Artifact Bucket
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - 
+        Label:
+          default: Required parameters
+        Parameters:
+          - DeployAccountID
+
+Parameters:
+  DeployAccountID:
+    Type: String
+
+Resources:
+  # EncryptionKey for Artifact Bucket
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: default
+        Statement:
+        - Sid: Enable Own Account IAM
+          Effect: Allow
+          Principal:
+            AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+          Action: kms:*
+          Resource: '*'
+        - Sid: CodePipelineServiceRole
+          Effect: Allow
+          Principal:
+            AWS: !ImportValue CodePipelineServiceRoleArn
+          Action:
+            - kms:Encrypt
+            - kms:Decrypt
+            - kms:ReEncrypt*
+            - kms:GenerateDataKey*
+            - kms:DescribeKey
+          Resource: '*'
+        - Sid: CrossAccountRole
+          Effect: Allow
+          Principal:
+            AWS: !Sub arn:aws:iam::${DeployAccountID}:root
+          Action:
+            - kms:Encrypt
+            - kms:Decrypt
+            - kms:ReEncrypt*
+            - kms:GenerateDataKey*
+            - kms:DescribeKey
+          Resource: '*'
+  KMSAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub alias/KeyforArtifactBucket
+      TargetKeyId: !Ref KMSKey
+
+Outputs:
+  KMSKeyARN:
+    Value: !GetAtt KMSKey.Arn
+    Export: 
+      Name: KMSKeyArn

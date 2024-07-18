@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create IAMRole for CloudFormationServiceRole
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - 
+        Label:
+          default: Required parameters
+        Parameters:
+          - CloudFormationServiceRoleName
+
+Parameters:
+  CloudFormationServiceRoleName:
+    Type: String
+
+Resources:
+  #IAMRole for CloudFormation
+  CloudFormationServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${CloudFormationServiceRoleName}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+  BasePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: BasePolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:CreateVpc
+              - ec2:CreateRouteTable
+              - ec2:CreateRoute
+              - ec2:ModifyVpcAttribute
+              - ec2:DescribeVpcs
+              - ec2:Delete*
+            Resource: "*"
+      Roles:
+        - !Ref CloudFormationServiceRole
+
+Outputs:
+  CloudFormationRoleArn:
+    Value: !GetAtt CloudFormationServiceRole.Arn
+    Export: 
+      Name: CloudFormationServiceRoleArn

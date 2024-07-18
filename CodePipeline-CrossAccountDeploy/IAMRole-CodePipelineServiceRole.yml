@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create IAMRole for CodePipelineServiceRole 
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - 
+        Label:
+          default: Required parameters
+        Parameters:
+          - DeployAccountID
+          - CrossAccountRoleName
+          - CodePipelineServiceRoleName
+
+Parameters:
+  DeployAccountID:
+    Type: String
+  CrossAccountRoleName:
+    Type: String
+  CodePipelineServiceRoleName:
+    Type: String
+
+Resources:
+  #IAMRole for CodepipelineServiceRole
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${CodePipelineServiceRoleName}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+  AssumeRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: AssumeRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Resource:
+              - !Sub arn:aws:iam::${DeployAccountID}:role/${CrossAccountRoleName}
+      Roles:
+        - !Ref CodePipelineServiceRole
+  BasePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: BasePolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - codecommit:GetRepository
+              - codecommit:ListBranches
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:UploadArchive
+              - codecommit:CancelUploadArchive
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - s3:*
+              - iam:PassRole
+            Resource: "*"
+      Roles:
+        - !Ref CodePipelineServiceRole
+
+Outputs:
+  CodePipelineServiceRoleArn:
+    Value: !GetAtt CodePipelineServiceRole.Arn
+    Export: 
+      Name: CodePipelineServiceRoleArn
